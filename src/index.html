@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hush</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="module" src="main.js"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>hush</h1>
+      <p id="status" aria-live="polite">Paused</p>
+    </header>
+
+    <button id="play" class="play" aria-label="Play" aria-pressed="false">
+      <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg>
+      <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></svg>
+      <span class="ring" aria-hidden="true"></span>
+    </button>
+
+    <fieldset class="colors">
+      <legend>Color</legend>
+      <label class="swatch white">
+        <input type="radio" name="color" value="white" />
+        <span class="chip"></span><span class="name">White</span><span class="desc">bright hiss</span>
+      </label>
+      <label class="swatch pink">
+        <input type="radio" name="color" value="pink" />
+        <span class="chip"></span><span class="name">Pink</span><span class="desc">rainfall</span>
+      </label>
+      <label class="swatch brown">
+        <input type="radio" name="color" value="brown" />
+        <span class="chip"></span><span class="name">Brown</span><span class="desc">deep rumble</span>
+      </label>
+    </fieldset>
+
+    <div class="sliders">
+      <label>
+        <span>Volume</span>
+        <input id="volume" type="range" min="0" max="1" step="0.01" />
+      </label>
+      <label>
+        <span>Tone <small id="toneHz"></small></span>
+        <input id="tone" type="range" min="0" max="1" step="0.005" />
+      </label>
+    </div>
+
+    <fieldset class="sleep">
+      <legend>Sleep timer <span id="countdown"></span></legend>
+      <div class="chips">
+        <label><input type="radio" name="sleep" value="0" checked /><span>Off</span></label>
+        <label><input type="radio" name="sleep" value="15" /><span>15m</span></label>
+        <label><input type="radio" name="sleep" value="30" /><span>30m</span></label>
+        <label><input type="radio" name="sleep" value="60" /><span>1h</span></label>
+        <label><input type="radio" name="sleep" value="90" /><span>90m</span></label>
+      </div>
+    </fieldset>
+
+    <footer>
+      <p id="hint"></p>
+    </footer>
+  </main>
+</body>
+</html>
