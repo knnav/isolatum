@@ -1,6 +1,7 @@
 // Main-thread side of the audio graph:
 //
-//   NoiseProcessor (worklet) → low-pass "tone" → volume → master → speakers
+//   NoiseProcessor (worklet) → high-pass "low cut" → low-pass "tone"
+//     → swell ("waves") → volume → master → speakers
 //
 // `volume` is the user's level. `master` is owned by transport: play/pause
 // fades and the sleep timer. Keeping them separate means dragging the volume
@@ -9,6 +10,11 @@
 const FADE_IN = 1.5;   // seconds
 const FADE_OUT = 0.4;  // seconds, for a manual pause
 const SLEEP_FADE = 30; // seconds, for the sleep timer's final fade
+export const FILTER_Q = 0.5; // gentle shelves, no resonant bump at the corner
+
+// Two slow, unrelated LFOs summed: the swells never line up the same way
+// twice, so it reads as surf rather than a metronome. Periods ≈ 11 s and 7 s.
+const WAVE_HZ = [0.09, 0.137];
 
 export class NoiseEngine {
   #ctx = null;
@@ -17,12 +23,15 @@ export class NoiseEngine {
   #sleepStopTimer = null;
   #pauseTimer = null;
 
-  constructor({ color = 'pink', volume = 0.6, tone = 1 } = {}) {
+  constructor({ color = 'pink', volume = 0.6, tone = 1, lowCut = 0, waves = 0 } = {}) {
     this.color = color;
     this.volume = volume;
     this.tone = tone;
+    this.lowCut = lowCut;
+    this.waves = waves;
     this.playing = false;
     this.sleepEndsAt = null; // epoch ms, for the UI countdown
+    this.sleepMinutes = 0;
   }
 
   // Build the graph lazily: an AudioContext created before a user gesture
@@ -39,13 +48,25 @@ export class NoiseEngine {
         outputChannelCount: [2],
         processorOptions: { color: this.color },
       });
-      const filter = new BiquadFilterNode(ctx, { type: 'lowpass', Q: 0.5, frequency: toneToHz(this.tone) });
+      const highpass = new BiquadFilterNode(ctx, { type: 'highpass', Q: FILTER_Q, frequency: lowCutToHz(this.lowCut) });
+      const filter = new BiquadFilterNode(ctx, { type: 'lowpass', Q: FILTER_Q, frequency: toneToHz(this.tone) });
+      // swell.gain = base + depth·(lfo₁ + lfo₂)/2, peaking at exactly 1 so
+      // waves only ever dip below the set volume, never above it.
+      const { base, depth } = wavesToSwell(this.waves);
+      const swell = new GainNode(ctx, { gain: base });
+      const lfoDepth = new GainNode(ctx, { gain: depth / 2 });
+      for (const frequency of WAVE_HZ) {
+        const lfo = new OscillatorNode(ctx, { frequency });
+        lfo.connect(lfoDepth);
+        lfo.start();
+      }
+      lfoDepth.connect(swell.gain);
       const volume = new GainNode(ctx, { gain: volumeToGain(this.volume) });
       const master = new GainNode(ctx, { gain: 0 });
-      source.connect(filter).connect(volume).connect(master).connect(ctx.destination);
+      source.connect(highpass).connect(filter).connect(swell).connect(volume).connect(master).connect(ctx.destination);
 
       this.#ctx = ctx;
-      this.#nodes = { source, filter, volume, master };
+      this.#nodes = { source, highpass, filter, swell, lfoDepth, volume, master };
     })();
     return this.#ready;
   }
@@ -99,6 +120,32 @@ export class NoiseEngine {
     this.#smooth(this.#nodes?.filter.frequency, toneToHz(t));
   }
 
+  setLowCut(t) {
+    this.lowCut = t;
+    this.#smooth(this.#nodes?.highpass.frequency, lowCutToHz(t));
+  }
+
+  setWaves(w) {
+    this.waves = w;
+    const { base, depth } = wavesToSwell(w);
+    this.#smooth(this.#nodes?.swell.gain, base);
+    this.#smooth(this.#nodes?.lfoDepth.gain, depth / 2);
+  }
+
+  /**
+   * Linear gain the listener hears right now relative to the volume setting:
+   * transport fades × the waves swell. For the UI's level display only.
+   * Reads the LFOs analytically: they started at phase 0 at context time 0,
+   * and an AudioParam's .value doesn't include signals connected into it.
+   */
+  outputLevel() {
+    if (!this.#ctx) return 0;
+    const t = this.#ctx.currentTime;
+    const { base, depth } = wavesToSwell(this.waves);
+    const lfo = WAVE_HZ.reduce((sum, f) => sum + Math.sin(2 * Math.PI * f * t), 0);
+    return this.#nodes.master.gain.value * (base + (depth / 2) * lfo);
+  }
+
   // setTargetAtTime instead of assigning .value: jumping a gain between audio
   // blocks produces "zipper" clicks while dragging a slider.
   #smooth(param, value) {
@@ -128,6 +175,7 @@ export class NoiseEngine {
     g.exponentialRampToValueAtTime(0.001, now + total);
     g.setValueAtTime(0, now + total);
     this.sleepEndsAt = Date.now() + total * 1000;
+    this.sleepMinutes = minutes;
     // Only the cleanup (suspend + UI state) rides on a timer; if it fires late
     // the output is already silent.
     this.#sleepStopTimer = setTimeout(() => {
@@ -148,6 +196,7 @@ export class NoiseEngine {
       g.linearRampToValueAtTime(1, now + 0.5);
     }
     this.sleepEndsAt = null;
+    this.sleepMinutes = 0;
   }
 }
 
@@ -163,4 +212,17 @@ export function volumeToGain(v) {
 // cutoff by the same musical interval, not the same number of Hz.
 export function toneToHz(t) {
   return 300 * (20000 / 300) ** t;
+}
+
+// Low-cut slider 0..1 → high-pass corner, exponentially from 20 Hz (off, for
+// all practical purposes) to 500 Hz, where even brown noise turns thin.
+export function lowCutToHz(t) {
+  return 20 * (500 / 20) ** t;
+}
+
+// Waves slider 0..1 → swell gain = base + depth·lfo, lfo ∈ [-1, 1]. At full
+// depth the troughs dip to 0.1 (-20 dB) and the crests sit at the set volume.
+export function wavesToSwell(w) {
+  const depth = 0.45 * w;
+  return { base: 1 - depth, depth };
 }

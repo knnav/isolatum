@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-color="pink">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -11,52 +11,87 @@
   <main>
     <header>
       <h1>hush</h1>
-      <p id="status" aria-live="polite">Paused</p>
+      <p id="status" class="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="statusText">Paused</span></p>
     </header>
 
-    <button id="play" class="play" aria-label="Play" aria-pressed="false">
-      <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg>
-      <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></svg>
-      <span class="ring" aria-hidden="true"></span>
-    </button>
+    <section class="hero">
+      <canvas id="spectrum" aria-hidden="true"></canvas>
+      <button id="play" class="play" aria-label="Play" aria-pressed="false">
+        <svg class="sleep-ring" viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="track" cx="50" cy="50" r="47" />
+          <circle id="sleepArc" class="arc" cx="50" cy="50" r="47" pathLength="100" />
+        </svg>
+        <svg class="icon icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg>
+        <svg class="icon icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></svg>
+      </button>
+      <div class="now">
+        <p id="title" class="title">Pink noise</p>
+        <p id="subtitle" class="subtitle">Paused</p>
+      </div>
+      <div class="axis" aria-hidden="true"><span>20 Hz</span><span>200</span><span>2k</span><span>20k</span></div>
+    </section>
 
-    <fieldset class="colors">
-      <legend>Color</legend>
-      <label class="swatch white">
-        <input type="radio" name="color" value="white" />
-        <span class="chip"></span><span class="name">White</span><span class="desc">bright hiss</span>
-      </label>
-      <label class="swatch pink">
-        <input type="radio" name="color" value="pink" />
-        <span class="chip"></span><span class="name">Pink</span><span class="desc">rainfall</span>
-      </label>
-      <label class="swatch brown">
-        <input type="radio" name="color" value="brown" />
-        <span class="chip"></span><span class="name">Brown</span><span class="desc">deep rumble</span>
-      </label>
-    </fieldset>
+    <section>
+      <h2 id="colorLabel">Sound</h2>
+      <div class="segmented colors" role="radiogroup" aria-labelledby="colorLabel">
+        <label title="Flat spectrum: a bright, airy hiss (key 1)">
+          <input type="radio" name="color" value="white" />
+          <span>
+            <svg viewBox="0 0 32 12" aria-hidden="true"><path d="M2 5H30" /></svg>
+            White
+          </span>
+        </label>
+        <label title="Falls 3 dB per octave: soft, like steady rain (key 2)">
+          <input type="radio" name="color" value="pink" />
+          <span>
+            <svg viewBox="0 0 32 12" aria-hidden="true"><path d="M2 3L30 9" /></svg>
+            Pink
+          </span>
+        </label>
+        <label title="Falls 6 dB per octave: a deep, low rumble (key 3)">
+          <input type="radio" name="color" value="brown" />
+          <span>
+            <svg viewBox="0 0 32 12" aria-hidden="true"><path d="M2 2C10 2 14 3 30 11" /></svg>
+            Brown
+          </span>
+        </label>
+      </div>
+    </section>
 
-    <div class="sliders">
-      <label>
-        <span>Volume</span>
+    <section class="sliders">
+      <h2>Shape</h2>
+      <label class="row">
+        <span class="name">Volume</span>
         <input id="volume" type="range" min="0" max="1" step="0.01" />
+        <output id="volumeOut" for="volume"></output>
       </label>
-      <label>
-        <span>Tone <small id="toneHz"></small></span>
+      <label class="row" title="Low-pass filter: softens the hiss">
+        <span class="name">Tone</span>
         <input id="tone" type="range" min="0" max="1" step="0.005" />
+        <output id="toneOut" for="tone"></output>
       </label>
-    </div>
+      <label class="row" title="High-pass filter: removes rumble">
+        <span class="name">Low cut</span>
+        <input id="lowCut" type="range" min="0" max="1" step="0.005" />
+        <output id="lowCutOut" for="lowCut"></output>
+      </label>
+      <label class="row" title="Slow, uneven swells, like surf">
+        <span class="name">Waves</span>
+        <input id="waves" type="range" min="0" max="1" step="0.01" />
+        <output id="wavesOut" for="waves"></output>
+      </label>
+    </section>
 
-    <fieldset class="sleep">
-      <legend>Sleep timer <span id="countdown"></span></legend>
-      <div class="chips">
+    <section>
+      <h2 id="sleepLabel">Sleep timer</h2>
+      <div class="segmented sleep" role="radiogroup" aria-labelledby="sleepLabel">
         <label><input type="radio" name="sleep" value="0" checked /><span>Off</span></label>
         <label><input type="radio" name="sleep" value="15" /><span>15m</span></label>
         <label><input type="radio" name="sleep" value="30" /><span>30m</span></label>
         <label><input type="radio" name="sleep" value="60" /><span>1h</span></label>
-        <label><input type="radio" name="sleep" value="90" /><span>90m</span></label>
+        <label><input type="radio" name="sleep" value="120" /><span>2h</span></label>
       </div>
-    </fieldset>
+    </section>
 
     <footer>
       <p id="hint"></p>

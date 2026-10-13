@@ -3,8 +3,12 @@
 A white noise machine for macOS and Windows. It generates the noise procedurally, so playback never loops. It lives in the menu bar or tray, and you can toggle it from anywhere with a global shortcut.
 
 - **White / pink / brown noise**, loudness-matched so switching color doesn't change perceived volume, with an 80 ms crossfade between colors
-- **Tone** knob: a low-pass filter from 300 Hz to 20 kHz to warm any color
-- **Sleep timer** (15 min – 90 min) with a 30-second fade that sounds evenly paced
+- **Tone**: a low-pass filter from 300 Hz to 20 kHz to warm any color
+- **Low cut**: a high-pass filter from 20 Hz to 500 Hz to take out rumble
+- **Waves**: slow, uneven volume swells (two unrelated LFOs, ~7 s and ~11 s), from gentle to deep
+- **Live spectrum**: the hero card draws the sound's actual shape (color slope through the real filter responses), and it swells with the waves and sinks during the sleep fade
+- **Sleep timer** (15 min – 2 h) with a 30-second fade that sounds evenly paced, and a countdown ring around the play button
+- **Keyboard** (window focused): <kbd>Space</kbd> play/pause, <kbd>↑</kbd> <kbd>↓</kbd> volume, <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> white/pink/brown
 - **Global shortcut**: <kbd>⌘ ⌥ N</kbd> on macOS, <kbd>Ctrl Alt N</kbd> on Windows
 - **Close to tray**: closing the window keeps the noise playing. Quit from the tray menu.
 
@@ -49,7 +53,8 @@ The first Rust build takes a few minutes while it compiles Tauri. Later builds a
 ```
 src/
   noise-processor.js   AudioWorklet: generates the noise on the audio thread
-  audio-engine.js      Builds the graph: worklet → low-pass → volume → master
+  audio-engine.js      Builds the graph: worklet → high-pass → low-pass → swell → volume → master
+  spectrum.js          The spectrum display (canvas; only animates while something changes)
   main.js              UI wiring, settings, tray/shortcut events
 src-tauri/src/lib.rs   Tray icon, global shortcut, close-to-tray
 test/                  Spectrum test for the noise generator
@@ -74,3 +79,4 @@ This renders each color through the real worklet code in Node. It checks spectra
 - **Shortcut:** `toggle_shortcut()` in `src-tauri/src/lib.rs`. Note that ⌘⌥N is "New Smart Folder" in Finder, and the global shortcut takes precedence over it.
 - **Sleep fade length:** `SLEEP_FADE` in `src/audio-engine.js`.
 - **Volume range:** `volumeToGain()` maps the slider onto −50 dB … 0 dB.
+- **Waves:** `WAVE_HZ` (swell rates) and `wavesToSwell()` (depth, −20 dB troughs at full) in `src/audio-engine.js`.
