@@ -1,15 +1,16 @@
 // Main-thread side of the audio graph:
 //
-//   NoiseProcessor (worklet) → high-pass "low cut" → low-pass "tone"
+//   NoiseProcessor (worklet: sound layers + stereo width) → high-pass "low cut" → low-pass "tone"
 //     → swell ("waves") → volume → master → speakers
 //
-// `volume` is the user's level. `master` is owned by transport: play/pause
-// fades and the sleep timer. Keeping them separate means dragging the volume
+// `volume` is the user's level. `master` is owned by transport: the play/pause
+// fades. Keeping them separate means dragging the volume
 // slider mid-fade can't fight the fade-out.
+
+export const SOUNDS = ['white', 'pink', 'brown', 'rain', 'fan', 'snow', 'ocean', 'stream', 'fire'];
 
 const FADE_IN = 1.5;   // seconds
 const FADE_OUT = 0.4;  // seconds, for a manual pause
-const SLEEP_FADE = 30; // seconds, for the sleep timer's final fade
 export const FILTER_Q = 0.5; // gentle shelves, no resonant bump at the corner
 
 // Two slow, unrelated LFOs summed: the swells never line up the same way
@@ -20,18 +21,16 @@ export class NoiseEngine {
   #ctx = null;
   #nodes = null;
   #ready = null;
-  #sleepStopTimer = null;
   #pauseTimer = null;
 
-  constructor({ color = 'pink', volume = 0.6, tone = 1, lowCut = 0, waves = 0 } = {}) {
-    this.color = color;
+  constructor({ mix = { pink: 1 }, volume = 0.6, tone = 1, lowCut = 0, waves = 0, width = 1 } = {}) {
+    this.mix = { ...mix }; // layer levels 0..1, keyed by SOUNDS
+    this.width = width;
     this.volume = volume;
     this.tone = tone;
     this.lowCut = lowCut;
     this.waves = waves;
     this.playing = false;
-    this.sleepEndsAt = null; // epoch ms, for the UI countdown
-    this.sleepMinutes = 0;
   }
 
   // Build the graph lazily: an AudioContext created before a user gesture
@@ -46,7 +45,7 @@ export class NoiseEngine {
       const source = new AudioWorkletNode(ctx, 'noise', {
         numberOfInputs: 0,
         outputChannelCount: [2],
-        processorOptions: { color: this.color },
+        processorOptions: { mix: this.mix, width: this.width },
       });
       const highpass = new BiquadFilterNode(ctx, { type: 'highpass', Q: FILTER_Q, frequency: lowCutToHz(this.lowCut) });
       const filter = new BiquadFilterNode(ctx, { type: 'lowpass', Q: FILTER_Q, frequency: toneToHz(this.tone) });
@@ -88,7 +87,6 @@ export class NoiseEngine {
   }
 
   async pause({ fade = FADE_OUT } = {}) {
-    this.cancelSleep();
     if (!this.#ctx || !this.playing) return;
     const g = this.#nodes.master.gain;
     const now = this.#ctx.currentTime;
@@ -105,9 +103,15 @@ export class NoiseEngine {
     return this.playing ? (await this.pause(), false) : this.play();
   }
 
-  setColor(color) {
-    this.color = color;
-    this.#nodes?.source.port.postMessage({ color });
+  /** Set some or all layer levels; layers not named keep their level. */
+  setMix(levels) {
+    this.mix = { ...this.mix, ...levels };
+    this.#nodes?.source.port.postMessage({ mix: this.mix });
+  }
+
+  setWidth(w) {
+    this.width = w;
+    this.#nodes?.source.port.postMessage({ width: w });
   }
 
   setVolume(v) {
@@ -151,52 +155,6 @@ export class NoiseEngine {
   #smooth(param, value) {
     if (!param) return;
     param.setTargetAtTime(value, this.#ctx.currentTime, 0.03);
-  }
-
-  /**
-   * Fade out and stop after `minutes`. The fade is scheduled as AudioParam
-   * automation, which runs on the audio thread with sample accuracy. A
-   * setTimeout-driven fade would be at the mercy of timer throttling: a hidden
-   * webview can delay timers by up to a minute.
-   */
-  startSleep(minutes) {
-    this.cancelSleep();
-    if (!this.playing || !minutes) return;
-    const total = minutes * 60;
-    const fade = Math.min(SLEEP_FADE, total);
-    const g = this.#nodes.master.gain;
-    const now = this.#ctx.currentTime;
-    g.cancelScheduledValues(now);
-    g.setValueAtTime(g.value, now);
-    // Exponential ramp = straight line in dB = an evenly paced fade to the ear.
-    // A linear gain ramp sounds loud for most of the fade, then falls off a
-    // cliff at the end. (Exponential ramps can't reach 0, so stop at -60 dB.)
-    g.setValueAtTime(1, now + total - fade);
-    g.exponentialRampToValueAtTime(0.001, now + total);
-    g.setValueAtTime(0, now + total);
-    this.sleepEndsAt = Date.now() + total * 1000;
-    this.sleepMinutes = minutes;
-    // Only the cleanup (suspend + UI state) rides on a timer; if it fires late
-    // the output is already silent.
-    this.#sleepStopTimer = setTimeout(() => {
-      this.sleepEndsAt = null;
-      this.pause({ fade: 0.05 });
-      this.onSleepEnd?.();
-    }, total * 1000 + 100);
-  }
-
-  cancelSleep() {
-    clearTimeout(this.#sleepStopTimer);
-    if (this.sleepEndsAt && this.playing) {
-      // Undo a pending fade: hold the current level and ramp back to full.
-      const g = this.#nodes.master.gain;
-      const now = this.#ctx.currentTime;
-      g.cancelScheduledValues(now);
-      g.setValueAtTime(g.value, now);
-      g.linearRampToValueAtTime(1, now + 0.5);
-    }
-    this.sleepEndsAt = null;
-    this.sleepMinutes = 0;
   }
 }
 

@@ -3,24 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hush</title>
+  <title>Isolatum</title>
   <link rel="stylesheet" href="style.css" />
   <script type="module" src="main.js"></script>
 </head>
 <body>
   <main>
     <header>
-      <h1>hush</h1>
+      <h1>isolatum</h1>
       <p id="status" class="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="statusText">Paused</span></p>
     </header>
 
     <section class="hero">
       <canvas id="spectrum" aria-hidden="true"></canvas>
       <button id="play" class="play" aria-label="Play" aria-pressed="false">
-        <svg class="sleep-ring" viewBox="0 0 100 100" aria-hidden="true">
-          <circle class="track" cx="50" cy="50" r="47" />
-          <circle id="sleepArc" class="arc" cx="50" cy="50" r="47" pathLength="100" />
-        </svg>
         <svg class="icon icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg>
         <svg class="icon icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></svg>
       </button>
@@ -32,64 +28,99 @@
     </section>
 
     <section>
-      <h2 id="colorLabel">Sound</h2>
-      <div class="segmented colors" role="radiogroup" aria-labelledby="colorLabel">
-        <label title="Flat spectrum: a bright, airy hiss (key 1)">
-          <input type="radio" name="color" value="white" />
-          <span>
-            <svg viewBox="0 0 32 12" aria-hidden="true"><path d="M2 5H30" /></svg>
-            White
-          </span>
-        </label>
-        <label title="Falls 3 dB per octave: soft, like steady rain (key 2)">
-          <input type="radio" name="color" value="pink" />
-          <span>
-            <svg viewBox="0 0 32 12" aria-hidden="true"><path d="M2 3L30 9" /></svg>
-            Pink
-          </span>
-        </label>
-        <label title="Falls 6 dB per octave: a deep, low rumble (key 3)">
-          <input type="radio" name="color" value="brown" />
-          <span>
-            <svg viewBox="0 0 32 12" aria-hidden="true"><path d="M2 2C10 2 14 3 30 11" /></svg>
-            Brown
-          </span>
-        </label>
+      <div class="section-head">
+        <h2 id="presetsLabel">Presets</h2>
+        <button id="saveOpen" class="link" type="button">+ Save current</button>
+        <form id="saveForm" class="save-form" hidden>
+          <input id="saveName" type="text" maxlength="40" placeholder="Name this sound" aria-label="Preset name" autocomplete="off" spellcheck="false" />
+          <button type="submit">Save</button>
+          <button id="saveCancel" type="button" aria-label="Cancel">✕</button>
+        </form>
       </div>
+      <div id="presets" class="presets" role="list" aria-labelledby="presetsLabel"></div>
     </section>
 
-    <section class="sliders">
-      <h2>Shape</h2>
-      <label class="row">
-        <span class="name">Volume</span>
-        <input id="volume" type="range" min="0" max="1" step="0.01" />
-        <output id="volumeOut" for="volume"></output>
-      </label>
-      <label class="row" title="Low-pass filter: softens the hiss">
-        <span class="name">Tone</span>
-        <input id="tone" type="range" min="0" max="1" step="0.005" />
-        <output id="toneOut" for="tone"></output>
-      </label>
-      <label class="row" title="High-pass filter: removes rumble">
-        <span class="name">Low cut</span>
-        <input id="lowCut" type="range" min="0" max="1" step="0.005" />
-        <output id="lowCutOut" for="lowCut"></output>
-      </label>
-      <label class="row" title="Slow, uneven swells, like surf">
-        <span class="name">Waves</span>
-        <input id="waves" type="range" min="0" max="1" step="0.01" />
-        <output id="wavesOut" for="waves"></output>
-      </label>
-    </section>
+    <label class="row volume">
+      <span class="name">Volume</span>
+      <input id="volume" type="range" min="0" max="1" step="0.01" />
+      <output id="volumeOut" for="volume"></output>
+    </label>
 
-    <section>
-      <h2 id="sleepLabel">Sleep timer</h2>
-      <div class="segmented sleep" role="radiogroup" aria-labelledby="sleepLabel">
-        <label><input type="radio" name="sleep" value="0" checked /><span>Off</span></label>
-        <label><input type="radio" name="sleep" value="15" /><span>15m</span></label>
-        <label><input type="radio" name="sleep" value="30" /><span>30m</span></label>
-        <label><input type="radio" name="sleep" value="60" /><span>1h</span></label>
-        <label><input type="radio" name="sleep" value="120" /><span>2h</span></label>
+    <section class="panel">
+      <div class="tabs" role="tablist" aria-label="Controls">
+        <button id="tab-mix" role="tab" aria-controls="panel-mix" aria-selected="true">Mix</button>
+        <button id="tab-shape" role="tab" aria-controls="panel-shape" aria-selected="false" tabindex="-1">Shape</button>
+      </div>
+
+      <div id="panel-mix" class="rows" role="tabpanel" aria-labelledby="tab-mix">
+        <div class="row mix-white">
+          <button class="name layer" data-sound="white" title="Flat spectrum: a bright, airy hiss. Click to mute or unmute."><i aria-hidden="true"></i>White</button>
+          <input id="white" type="range" min="0" max="1" step="0.01" aria-label="White noise level" />
+          <output id="whiteOut" for="white"></output>
+        </div>
+        <div class="row mix-pink">
+          <button class="name layer" data-sound="pink" title="Falls 3 dB per octave: soft and even. Click to mute or unmute."><i aria-hidden="true"></i>Pink</button>
+          <input id="pink" type="range" min="0" max="1" step="0.01" aria-label="Pink noise level" />
+          <output id="pinkOut" for="pink"></output>
+        </div>
+        <div class="row mix-brown">
+          <button class="name layer" data-sound="brown" title="Falls 6 dB per octave: a deep rumble. Click to mute or unmute."><i aria-hidden="true"></i>Brown</button>
+          <input id="brown" type="range" min="0" max="1" step="0.01" aria-label="Brown noise level" />
+          <output id="brownOut" for="brown"></output>
+        </div>
+        <div class="row mix-rain">
+          <button class="name layer" data-sound="rain" title="A soft hiss under a dense patter of drops, swelling and easing. Click to mute or unmute."><i aria-hidden="true"></i>Rain</button>
+          <input id="rain" type="range" min="0" max="1" step="0.01" aria-label="Rain level" />
+          <output id="rainOut" for="rain"></output>
+        </div>
+        <div class="row mix-fan">
+          <button class="name layer" data-sound="fan" title="A whoosh with blade flutter and motor hum. Click to mute or unmute."><i aria-hidden="true"></i>Fan</button>
+          <input id="fan" type="range" min="0" max="1" step="0.01" aria-label="Fan level" />
+          <output id="fanOut" for="fan"></output>
+        </div>
+        <div class="row mix-snow">
+          <button class="name layer" data-sound="snow" title="A blizzard: gusting, howling wind and blown ice. Click to mute or unmute."><i aria-hidden="true"></i>Snow</button>
+          <input id="snow" type="range" min="0" max="1" step="0.01" aria-label="Snowstorm level" />
+          <output id="snowOut" for="snow"></output>
+        </div>
+        <div class="row mix-ocean">
+          <button class="name layer" data-sound="ocean" title="Surf: waves build, break and wash out. Click to mute or unmute."><i aria-hidden="true"></i>Ocean</button>
+          <input id="ocean" type="range" min="0" max="1" step="0.01" aria-label="Ocean level" />
+          <output id="oceanOut" for="ocean"></output>
+        </div>
+        <div class="row mix-stream">
+          <button class="name layer" data-sound="stream" title="A babbling brook: small bubbles over moving water. Click to mute or unmute."><i aria-hidden="true"></i>Stream</button>
+          <input id="stream" type="range" min="0" max="1" step="0.01" aria-label="Stream level" />
+          <output id="streamOut" for="stream"></output>
+        </div>
+        <div class="row mix-fire">
+          <button class="name layer" data-sound="fire" title="A fireplace: low roar, crackles and the odd pop. Click to mute or unmute."><i aria-hidden="true"></i>Fire</button>
+          <input id="fire" type="range" min="0" max="1" step="0.01" aria-label="Fire level" />
+          <output id="fireOut" for="fire"></output>
+        </div>
+      </div>
+
+      <div id="panel-shape" class="rows" role="tabpanel" aria-labelledby="tab-shape" hidden>
+        <label class="row" title="Low-pass filter: softens the hiss">
+          <span class="name">Tone</span>
+          <input id="tone" type="range" min="0" max="1" step="0.005" />
+          <output id="toneOut" for="tone"></output>
+        </label>
+        <label class="row" title="High-pass filter: removes rumble">
+          <span class="name">Low cut</span>
+          <input id="lowCut" type="range" min="0" max="1" step="0.005" />
+          <output id="lowCutOut" for="lowCut"></output>
+        </label>
+        <label class="row" title="Slow, uneven swells, like surf">
+          <span class="name">Waves</span>
+          <input id="waves" type="range" min="0" max="1" step="0.01" />
+          <output id="wavesOut" for="waves"></output>
+        </label>
+        <label class="row" title="Stereo width: from mono (both ears the same) to fully wide">
+          <span class="name">Width</span>
+          <input id="width" type="range" min="0" max="1" step="0.01" />
+          <output id="widthOut" for="width"></output>
+        </label>
       </div>
     </section>
 

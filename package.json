@@ -1,13 +1,15 @@
 {
-  "name": "hush",
+  "name": "isolatum",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
-    "build": "tauri build",
+    "build": "tauri build --bundles appimage && node scripts/collect-portable.mjs linux",
+    "build:win": "tauri build --no-bundle --runner cargo-xwin --target x86_64-pc-windows-msvc && node scripts/collect-portable.mjs windows",
     "test": "node test/noise-spectrum.mjs",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:mac": "tauri build"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"

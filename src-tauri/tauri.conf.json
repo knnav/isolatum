@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Hush",
+  "productName": "Isolatum",
   "version": "0.1.0",
-  "identifier": "dev.kurt.hush",
+  "identifier": "dev.kurt.isolatum",
   "build": {
     "frontendDist": "../src"
   },
@@ -11,9 +11,9 @@
     "windows": [
       {
         "label": "main",
-        "title": "Hush",
+        "title": "Isolatum",
         "width": 360,
-        "height": 580,
+        "height": 724,
         "resizable": false,
         "maximizable": false,
         "center": true
