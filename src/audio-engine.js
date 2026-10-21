@@ -7,7 +7,7 @@
 // fades. Keeping them separate means dragging the volume
 // slider mid-fade can't fight the fade-out.
 
-export const SOUNDS = ['white', 'pink', 'brown', 'rain', 'fan', 'snow', 'ocean', 'stream', 'fire'];
+export const SOUNDS = ['white', 'pink', 'brown', 'rain', 'fan', 'snow', 'ocean', 'stream', 'fire', 'rumble'];
 
 const FADE_IN = 1.5;   // seconds
 const FADE_OUT = 0.4;  // seconds, for a manual pause

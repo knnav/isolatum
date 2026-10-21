@@ -2,15 +2,16 @@
 
 A white noise machine for macOS and Windows. It generates the noise procedurally, so playback never loops. It lives in the menu bar or tray, and you can toggle it from anywhere with a global shortcut.
 
-- **Nine sounds**: white, pink and brown noise, plus
+- **Ten sounds**: white, pink and brown noise, plus
   - **rain**: a soft hiss under a dense patter of drops, swelling and easing
   - **fan**: a whoosh with blade flutter and a faint motor hum
   - **snow**: a blizzard, with gusting, howling wind and blown ice
   - **ocean**: surf, where each wave builds, breaks and washes out
   - **stream**: a babbling brook, with small rising bubbles over moving water
   - **fire**: a fireplace, with a low roar, clumped crackles and the odd pop
+  - **rumble**: deeper than brown, a slow, rolling sub-bass like distant thunder (best on headphones or a speaker with real bass)
 
-  All are loudness-matched, so switching doesn't change perceived volume.
+  All are loudness-matched, so switching doesn't change perceived volume. Rumble is the exception: it sits about 6 dB lower (A-weighted), because pure sub-bass can't reach the others' level without clipping.
 - **Mixer**: layer any of the sounds at their own levels. The mix is power-normalized, so stacking layers can't get louder than one layer at 100% or clip. Click a layer's name to mute or unmute it.
 - **Presets**: Rain, Storm, Snowstorm, Ocean, Brook, Fireplace, Fan, Deep sleep and Focus are built in, and you can save your own. Presets store the sound (mix and shape) but never the volume, so picking one can't blast you. Keys <kbd>1</kbd>–<kbd>9</kbd> pick them.
 - **Tone**: a low-pass filter from 300 Hz to 20 kHz to warm any color
@@ -77,7 +78,7 @@ test/                  Spectrum test for the noise generator
 scripts/               measure-sounds.mjs (calibration), collect-portable.mjs (build output)
 ```
 
-- **Sounds.** White noise is uniform random samples. Pink noise comes from Paul Kellet's filter bank, which approximates −3 dB/octave. Brown noise is leaky-integrated white, at −6 dB/octave. Rain is a band-limited hiss with a little low body, a dense Poisson patter of sub-millisecond noise ticks, and a few broad, unpitched splats. It avoids pitched resonators, which make rain sound like drops falling into a bucket. Snow is noise through a state-variable band-pass whose centre and level follow a random gust, plus a narrow whistle in strong gusts and gust-driven ice hiss. Ocean runs one shared surf cycle: the swell builds, the break opens a low-pass, and a fizzing wash decays slowly. Stream is a babble of sine "bubbles" whose pitch rises as they decay, which is how a collapsing air pocket rings. Fire is a breathing low roar and hiss under bursts of sharp crackles, with occasional duller pops. Slow variation (gusts, showers, flicker) comes from Ornstein–Uhlenbeck drifts, so it wanders without jumping. Fan is doubly low-passed noise, amplitude-modulated at a wandering ~23 Hz blade rate, with a quiet 100 Hz motor hum. Every layer draws its own randomness, and each stereo channel has independent state, so the sound is wide instead of sitting in the center of your head.
+- **Sounds.** White noise is uniform random samples. Pink noise comes from Paul Kellet's filter bank, which approximates −3 dB/octave. Brown noise is leaky-integrated white, at −6 dB/octave. Rain is a band-limited hiss with a little low body, a dense Poisson patter of sub-millisecond noise ticks, and a few broad, unpitched splats. It avoids pitched resonators, which make rain sound like drops falling into a bucket. Snow is noise through a state-variable band-pass whose centre and level follow a random gust, plus a narrow whistle in strong gusts and gust-driven ice hiss. Ocean runs one shared surf cycle: the swell builds, the break opens a low-pass, and a fizzing wash decays slowly. Stream is a babble of sine "bubbles" whose pitch rises as they decay, which is how a collapsing air pocket rings. Fire is a breathing low roar and hiss under bursts of sharp crackles, with occasional duller pops. Rumble is a sub-bass band (three poles at 90 Hz, with everything under 25 Hz removed) over a dark two-pole body at 250 Hz, rolling slowly in level. Slow variation (gusts, showers, flicker) comes from Ornstein–Uhlenbeck drifts, so it wanders without jumping. Fan is doubly low-passed noise, amplitude-modulated at a wandering ~23 Hz blade rate, with a quiet 100 Hz motor hum. Every layer draws its own randomness, and each stereo channel has independent state, so the sound is wide instead of sitting in the center of your head.
 - **Mixing.** Layer levels are divided by their root-sum-square before mixing, which keeps a full mix at about the loudness of one layer. A soft limiter at the worklet's output (transparent below 0.7) catches the rare peak from a splat, crackle or wave break. The tests check that it touches fewer than 0.01% of samples.
 - **Rust never touches audio.** The tray and the shortcut only emit events (`toggle-playback`, `tray-preset`), and the JS engine is the single source of truth for playback state. The webview pushes what the tray menu should show through the `sync_tray` command, and only when it changes. Rust updates the existing menu items in place rather than replacing the menu, so a change can't close it while it's open.
 - **Pausing suspends the AudioContext.** That means zero CPU while paused, instead of rendering silence.

@@ -10,7 +10,7 @@ const isMac = /Mac/.test(navigator.platform);
 const clamp01 = (x) => Math.min(1, Math.max(0, Number.isFinite(x) ? x : 0));
 const SOUND_NAMES = {
   white: 'White noise', pink: 'Pink noise', brown: 'Brown noise', rain: 'Rain', fan: 'Fan',
-  snow: 'Snowstorm', ocean: 'Ocean', stream: 'Stream', fire: 'Fireplace',
+  snow: 'Snowstorm', ocean: 'Ocean', stream: 'Stream', fire: 'Fireplace', rumble: 'Rumble',
 };
 
 // ---- settings ---------------------------------------------------------------

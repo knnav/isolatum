@@ -8,14 +8,14 @@
 //
 // Run: node test/noise-spectrum.mjs   (or: npm test)
 
-import { SR, render, slopeDbPerOctave, aWeightedDb, rms, mean, peak, limited, correlation } from './harness.mjs';
+import { SR, TARGET_DB, render, slopeDbPerOctave, aWeightedDb, rms, mean, peak, limited, correlation } from './harness.mjs';
 
 // Brown noise's leak puts its corner around fs*0.02/2π ≈ 150 Hz, so measure
 // slopes in a band above that where all three should follow their ideal.
 const BAND = [400, 12800];
-const SOUNDS = ['white', 'pink', 'brown', 'rain', 'fan', 'snow', 'ocean', 'stream', 'fire'];
+const SOUNDS = ['white', 'pink', 'brown', 'rain', 'fan', 'snow', 'ocean', 'stream', 'fire', 'rumble'];
 // Sounds that swell slowly (waves, gusts) need a longer render for a stable average.
-const SECONDS = { rain: 60, snow: 120, ocean: 120, stream: 60, fire: 60 };
+const SECONDS = { rain: 60, snow: 120, ocean: 120, stream: 60, fire: 60, rumble: 120 };
 const expected = { white: 0, pink: -3, brown: -6 }; // the textures have no single slope
 let failures = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failures++; };
@@ -47,7 +47,8 @@ const steady = ['white', 'pink', 'brown', 'fan'].map((k) => rel[k]);
 const spread = Math.max(...steady) - Math.min(...steady);
 check(spread < 1, `perceived-loudness spread across steady noises ${spread.toFixed(2)} dB (< 1 dB)`);
 for (const k of SOUNDS.filter((k) => !['white', 'pink', 'brown', 'fan'].includes(k))) {
-  check(Math.abs(rel[k]) < 1, `${k.padEnd(6)} loudness ${rel[k].toFixed(2)} dB vs pink (within 1 dB)`);
+  const want = TARGET_DB[k] ?? 0;
+  check(Math.abs(rel[k] - want) < 1, `${k.padEnd(6)} loudness ${rel[k].toFixed(2)} dB vs pink (want ${want} ± 1 dB)`);
 }
 
 // Mixer: layering everything at 100% is normalized back to about one layer's

@@ -9,6 +9,7 @@
 //   ocean                surf: each wave builds, breaks, and washes out
 //   stream               a brook: a babble of small rising bubbles over a wash
 //   fire                 a fireplace: low roar, clumped crackles, the odd pop
+//   rumble               a deep, slowly rolling sub-bass rumble, like distant thunder
 //
 // The sounds are layered by a mixer. Each layer's weight slews toward its
 // target, so moving a fader or switching presets is a ~80 ms crossfade, never
@@ -18,14 +19,19 @@
 // not equal RMS, so every layer at 100% sounds equally loud. White noise
 // concentrates energy at 2–5 kHz where hearing is most sensitive, so at equal
 // RMS it sounds ~11 dB louder than pink. Pink is scaled to 0.7 for headroom.
+// Rumble is the exception: A-weighting discounts sub-bass so heavily that
+// matching it to pink would need more level than there is headroom, so it
+// sits 6.5 dB below pink instead (TARGET_DB in test/harness.mjs). At normal
+// listening levels the ear discounts bass less than A-weighting does, so it
+// sounds closer than that.
 // Measured by `node scripts/measure-sounds.mjs`; re-run it if you change a generator.
 const GAIN = {
   white: 0.2, pink: 0.7, brown: 0.874, rain: 0.731, fan: 0.514,
-  snow: 2.46, ocean: 1.22, stream: 1.43, fire: 1.07,
+  snow: 2.46, ocean: 1.22, stream: 1.43, fire: 1.07, rumble: 0.996,
 };
 
-const SOUNDS = ['white', 'pink', 'brown', 'rain', 'fan', 'snow', 'ocean', 'stream', 'fire'];
-const [WHITE, PINK, BROWN, RAIN, FAN, SNOW, OCEAN, STREAM, FIRE] = SOUNDS.keys();
+const SOUNDS = ['white', 'pink', 'brown', 'rain', 'fan', 'snow', 'ocean', 'stream', 'fire', 'rumble'];
+const [WHITE, PINK, BROWN, RAIN, FAN, SNOW, OCEAN, STREAM, FIRE, RUMBLE] = SOUNDS.keys();
 const SLEW_SECONDS = 0.08;
 
 const white = () => Math.random() * 2 - 1;
@@ -145,6 +151,8 @@ function makeChannelState() {
     roar: 0, roar2: 0, fireHiss: svf(3000, 0.7),
     crackles: Array.from({ length: 12 }, grain), nextCrackle: 0, burstLeft: 0, burstGap: 0,
     pops: Array.from({ length: 2 }, grain), nextPop: 0,
+    // rumble
+    rumbleLp: 0, rumbleLp2: 0, rumbleLp3: 0, rumbleSub: 0, rumbleBody: 0, rumbleBody2: 0,
   };
 }
 
@@ -342,6 +350,28 @@ function fireStep(s, flicker, crackle) {
   return out + grainsStep(s.crackles) + grainsStep(s.pops) * 1.5;
 }
 
+// ---- rumble -----------------------------------------------------------------
+// Deeper than brown: most of its energy sits below 100 Hz. A sub band (three
+// low-passes at 90 Hz, -18 dB/octave above it, with the subsonic floor under
+// 25 Hz taken out so it moves air instead of drifting toward DC) over a dark
+// body (two low-passes at 250 Hz) that keeps it audible on small speakers,
+// which can't reproduce the sub. The whole thing rolls slowly with the shared
+// `roll`, like thunder that never quite ends.
+const RUMBLE_LP = onePole(90);
+const RUMBLE_SUB = onePole(25);
+const RUMBLE_BODY = onePole(250);
+
+function rumbleStep(s, roll) {
+  const w = white();
+  s.rumbleLp += RUMBLE_LP * (w - s.rumbleLp);
+  s.rumbleLp2 += RUMBLE_LP * (s.rumbleLp - s.rumbleLp2);
+  s.rumbleLp3 += RUMBLE_LP * (s.rumbleLp2 - s.rumbleLp3);
+  s.rumbleSub += RUMBLE_SUB * (s.rumbleLp3 - s.rumbleSub);
+  s.rumbleBody += RUMBLE_BODY * (white() - s.rumbleBody);
+  s.rumbleBody2 += RUMBLE_BODY * (s.rumbleBody - s.rumbleBody2);
+  return ((s.rumbleLp3 - s.rumbleSub) * 5 + s.rumbleBody2 * 2.6) * roll;
+}
+
 class NoiseProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
@@ -366,8 +396,9 @@ class NoiseProcessor extends AudioWorkletProcessor {
     this.flowDrift = new Drift(2);
     this.flickerDrift = new Drift(0.5);
     this.crackleDrift = new Drift(3);
+    this.rollDrift = new Drift(3);
     this.surf = { t: 0, build: 3, next: 10, peak: 0.8, swell: 0, kick: 0, crash: 0, wash: 0 };
-    this.mod = { flutter: 1, hum: 0, intensity: 1, gust: 0.6, flow: 1, flicker: 1, crackle: 1 };
+    this.mod = { flutter: 1, hum: 0, intensity: 1, gust: 0.6, flow: 1, flicker: 1, crackle: 1, roll: 1 };
     this.crashAttack = onePole(1 / (2 * Math.PI * 0.25)); // ~0.25 s break
     this.crashDecay = decayFor(1.8);
     this.washDecay = decayFor(4);
@@ -449,6 +480,7 @@ class NoiseProcessor extends AudioWorkletProcessor {
         m.flicker = Math.max(0.6, 1 + 0.12 * this.flickerDrift.step());
         m.crackle = Math.exp(0.8 * this.crackleDrift.step());
       }
+      if (on[RUMBLE]) m.roll = Math.max(0.6, 1 + 0.1 * this.rollDrift.step());
 
       const L = this.#sample(sL, w, on, m);
       const R = this.#sample(sR, w, on, m);
@@ -487,6 +519,7 @@ class NoiseProcessor extends AudioWorkletProcessor {
     }
     if (on[STREAM]) x += streamStep(s, m.flow) * GAIN.stream * w[STREAM];
     if (on[FIRE]) x += fireStep(s, m.flicker, m.crackle) * GAIN.fire * w[FIRE];
+    if (on[RUMBLE]) x += rumbleStep(s, m.roll) * GAIN.rumble * w[RUMBLE];
     return x;
   }
 }

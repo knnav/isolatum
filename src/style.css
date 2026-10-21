@@ -18,6 +18,7 @@
   --c-ocean: #2f5fae;
   --c-stream: #2a7d5c;
   --c-fire: #b8452c;
+  --c-rumble: #56606e;
   --accent: var(--c-pink);
   --on-accent: #ffffff;
   color-scheme: light;
@@ -41,6 +42,7 @@
     --c-ocean: #93b1f0;
     --c-stream: #86d3b2;
     --c-fire: #f39478;
+    --c-rumble: #aeb8c6;
     --on-accent: #1a1216;
     color-scheme: dark;
   }
@@ -54,6 +56,7 @@
 :root[data-color="ocean"], .mix-ocean { --accent: var(--c-ocean); }
 :root[data-color="stream"], .mix-stream { --accent: var(--c-stream); }
 :root[data-color="fire"], .mix-fire { --accent: var(--c-fire); }
+:root[data-color="rumble"], .mix-rumble { --accent: var(--c-rumble); }
 
 * { box-sizing: border-box; margin: 0; }
 
@@ -290,7 +293,7 @@ button { font: inherit; color: inherit; }
 .tabs button:not(:first-child)[aria-selected="true"]::after { left: 10px; }
 .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
 
-.rows { display: flex; flex-direction: column; gap: 4px; min-height: 230px; } /* 9 rows, so switching tabs never shifts the layout */
+.rows { display: flex; flex-direction: column; gap: 4px; min-height: 256px; } /* 10 rows, so switching tabs never shifts the layout */
 .rows[hidden] { display: none; }
 
 /* Mixer layer names double as mute toggles. */

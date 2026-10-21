@@ -6,6 +6,11 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 export const SR = 48000;
+
+// A-weighted level each sound is matched to, in dB relative to pink (0 if
+// absent). Rumble's sub-bass can't reach pink's A-weighted level without
+// clipping, so it sits as loud as its headroom allows.
+export const TARGET_DB = { rumble: -6.5 };
 const src = readFileSync(new URL('../src/noise-processor.js', import.meta.url), 'utf8');
 
 // Seeded random so the statistics (peaks especially) are the same every run.

@@ -1,6 +1,7 @@
 // Measures every sound the worklet makes and prints what to paste back after
 // changing a generator:
-//   - GAIN for src/noise-processor.js (equal A-weighted loudness, pink fixed)
+//   - GAIN for src/noise-processor.js (equal A-weighted loudness, pink fixed,
+//     offset by TARGET_DB where a sound can't reach pink's level)
 //   - BANDS for src/spectrum.js (third-octave levels, dB re pink at 1 kHz)
 // With --wav, also writes a 30 s stereo clip of each sound to dist/samples/
 // so you can listen without launching the app.
@@ -8,9 +9,9 @@
 // Run: node scripts/measure-sounds.mjs [--wav]   (takes a few minutes)
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { SR, render, psd, aWeightedDb, peak, limited } from '../test/harness.mjs';
+import { SR, TARGET_DB, render, psd, aWeightedDb, peak, limited } from '../test/harness.mjs';
 
-const SOUNDS = ['white', 'pink', 'brown', 'rain', 'fan', 'snow', 'ocean', 'stream', 'fire'];
+const SOUNDS = ['white', 'pink', 'brown', 'rain', 'fan', 'snow', 'ocean', 'stream', 'fire', 'rumble'];
 // Steady noises settle fast; the textures swell over seconds (waves, gusts,
 // showers), so they need minutes for a stable long-run average.
 const STEADY = ['white', 'pink', 'brown', 'fan'];
@@ -56,7 +57,7 @@ for (const sound of SOUNDS) {
   if (writeWav) writeFileSync(`dist/samples/${sound}.wav`, wav(L.subarray(0, SR * 30), R.subarray(0, SR * 30)));
 }
 
-const gain = Object.fromEntries(SOUNDS.map((k) => [k, +(GAIN[k] * 10 ** ((loud.pink - loud[k]) / 20)).toPrecision(3)]));
+const gain = Object.fromEntries(SOUNDS.map((k) => [k, +(GAIN[k] * 10 ** ((loud.pink + (TARGET_DB[k] ?? 0) - loud[k]) / 20)).toPrecision(3)]));
 console.log('GAIN:', JSON.stringify(gain).replace(/"/g, '').replace(/,/g, ', '));
 // Bands scale with the gain change, so they are already loudness-matched.
 const ref = band.pink[17];
